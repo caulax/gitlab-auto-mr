@@ -2,6 +2,7 @@ credentians:
     url: https://gitlab.com/
     private_token:
     api_version: v4
+    assignee_id: 
 
 jobs_mr:
     - project:

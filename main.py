@@ -8,13 +8,15 @@ def main():
     projects = getSettings()['jobs_mr']
     url = creds['url'] + "api/" + creds['api_version'] + "/projects/"
     headers = {'Private-Token': creds['private_token']}
-    createNewMR(projects, url, headers)
+    ass_id = creds['assignee_id']
+    createNewMR(projects, url, headers, ass_id)
 
-def createNewMR(projects, url, headers):
+def createNewMR(projects, url, headers, ass_id):
     for project in projects:
         project = project["project"]
         project_path =  project['path'].replace("/", "%2F")
         data = {'title' : project['title'],
+                'assignee_id' : ass_id,
                 'source_branch' : project['source_branch'], 
                 'target_branch': project['target_branch'], 
                 'labels': project['labels']}
