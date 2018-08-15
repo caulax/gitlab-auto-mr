@@ -17,26 +17,21 @@ def createNewMR(projects, url, headers, ass_id):
         project_path =  project['path'].replace("/", "%2F")
         source_branch = project['source_branch']
         target_branch = project['target_branch']
-
+    
         project_id = getIdProjectByPath(project_path, url, headers)
-        if(project_id):
-            hash_source_branch = getHashOfLastCommitByBranch(source_branch, project_id, url, headers)
-            hash_target_branch = getHashOfLastCommitByBranch(target_branch, project_id, url, headers)
-            if(hash_source_branch and hash_target_branch):
-                if(hash_source_branch != hash_target_branch):
-
-                    data = {'title' : project['title'],
-                            'assignee_id' : ass_id,
-                            'source_branch' : source_branch, 
-                            'target_branch': target_branch, 
-                            'labels': project['labels']}     
-                
-                    r = requests.post(url + str(project_id) + "/merge_requests", headers=headers, data=data)
-                    print("Merge branches on project " + project['path'] + " returned " + str(r))
-                else:
-                    print("Hash commits equals on project " + project['path'])
+    
+        if(project_id):           
+            if(compareBranches(source_branch, target_branch, project_id, url, headers)):
+                data = {'title' : project['title'],
+                        'assignee_id' : ass_id,
+                        'source_branch' : source_branch, 
+                        'target_branch': target_branch, 
+                        'labels': project['labels']}     
+            
+                r = requests.post(url + str(project_id) + "/merge_requests", headers=headers, data=data)
+                print("Merge branches in project " + project['path'] + " returned " + str(r))
             else:
-                print("Wrong branches name on project " +  project['path'])
+                print("No changes in project " +  project['path'])
         else:
             print("No such project: " + project['path'])
 
@@ -49,16 +44,14 @@ def getIdProjectByPath(path, url, headers):
     else: 
         return response.get('id')
 
-def getHashOfLastCommitByBranch(branch_name, project_id, url, headers):
-    r = requests.get(url + str(project_id) + "/repository/commits/?ref_name=" + branch_name, headers=headers)
+def compareBranches(source_branch, target_branch, project_id, url, headers):
+    r = requests.get(url + str(project_id) + "/repository/compare?from=" + target_branch + "&to=" + source_branch, headers=headers)
     response = json.loads(r.text)
-
-    if not response:
-        return None
-    else: 
-        return response[0].get('id')
-
-       
+    if(response.get('diffs')):
+        return True
+    else:
+        return False
+ 
 def getSettings():
     with open("./settings.yaml", 'r') as ymlfile:
         return yaml.load(ymlfile)
