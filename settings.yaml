@@ -1,13 +1,13 @@
 credentians:
-    url: https://gitlab.ivaldi.norse.digital/
-    private_token: mbFzB-bwj_yAZcQebjtq
+    url: https://gitlab.com/
+    private_token:
     api_version: v4
-    assignee_id: 36
+    assignee_id: 
 
 jobs_mr:
     - project:
-        path: vits/interaction-apis
-        title: BACKEND develop to develop_copy_tmp
+        path: caulax/haproxy
+        title: TEST
         source_branch: develop
-        target_branch: develop_copy_tmp
-        labels: release1
+        target_branch: master
+        labels: test
