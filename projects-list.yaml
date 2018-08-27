@@ -1,0 +1,14 @@
+global_labels: some
+jobs_mr:
+    - project:
+        path: caulax/haproxy
+        title: TEST
+        source_branch: develop
+        target_branch: master
+    # - project:
+    #     path: caulax/spring-learn
+    #     title: TEST
+    #     source_branch: develop
+    #     target_branch: master
+
+

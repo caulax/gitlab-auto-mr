@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-#docker build -t glmr .
-docker run -v `pwd`/.settings.yaml:/var/app/settings.yaml --rm glmr
+docker build -t glmr .
+docker run --rm glmr python main.py -a create-mr -f projects-list.yaml

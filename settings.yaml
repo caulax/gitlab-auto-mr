@@ -1,13 +1,5 @@
 credentians:
     url: https://gitlab.com/
-    private_token:
+    private_token: jSjzYjtbXXuGRztRMjFJ
     api_version: v4
-    assignee_id: 
-
-jobs_mr:
-    - project:
-        path: caulax/haproxy
-        title: TEST
-        source_branch: develop
-        target_branch: master
-        labels: test
+    assignee_id: 1472421
