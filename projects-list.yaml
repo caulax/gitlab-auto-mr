@@ -1,4 +1,8 @@
-global_labels: some
+# Example
+global: 
+    labels: some
+    branch: develop
+    tag: 0.1.1
 jobs_mr:
     - project:
         path: caulax/haproxy
@@ -10,5 +14,6 @@ jobs_mr:
     #     title: TEST
     #     source_branch: develop
     #     target_branch: master
+
 
 

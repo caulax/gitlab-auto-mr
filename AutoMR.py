@@ -14,7 +14,9 @@ class AutoMR():
 
         with open(filename, "r") as settingsFile:
             self.settings = yaml.load(settingsFile)
-        self.labels = self.settings['global_labels']
+        self.labels = self.settings['global']['labels']
+        self.branch = self.settings['global']['branch']
+        self.tag = self.settings['global']['tag']
         self.projects = self.settings['jobs_mr']
         
     def acceptMR(self):
@@ -73,7 +75,7 @@ class AutoMR():
         project_path = project_path.replace("/", "%2F")
         r = requests.get(self.url + "/projects/" + project_path, headers=self.headers)
         response = json.loads(r.text)
-        
+
         if(response.get("message") != None):
             return None
         else: 
@@ -86,6 +88,66 @@ class AutoMR():
             return True
         else:
             return False
-     
-    def getSettings():
-        pass
+
+    def getLatestTagByProjectId(self, project_id):
+        r = requests.get(self.url + "/projects/" + str(project_id) + "/repository/tags", headers=self.headers)
+        try:
+            response = json.loads(r.text)[0]
+            return response.get("name")
+        except:
+            return False
+
+    def createTagByMask(self):
+        for project in self.projects:
+            project = project["project"]
+            project_path =  project['path']
+        
+            project_id = self.getIdProjectByPath(project_path)
+        
+            if project_id:
+                tag = self.getLatestTagByProjectId(project_id)
+                if tag:
+                    data = {
+                            'id' : project_id,
+                            'tag_name' : self.tag,
+                            'ref' : self.branch
+                        }  
+                    r = requests.post(self.url + "/projects/" + str(project_id) + "/repository/tags", headers=self.headers, data=data)
+                    if r.status_code == 400:
+                        print("Tag " + self.tag + " in project: " + project['path'] + ":" + self.branch + " already exist. Status: " + str(r.status_code))
+                    else:
+                        print("Tag " + self.tag + " in project: " + project['path'] + ":" + self.branch + " created. Status: " + str(r.status_code))
+                        
+                else:
+                    print("There is no tags in project: " + project['path'])     
+            else:
+                print("No such project: " + project['path'])
+
+    def useMaskForIncrementTagVersion(self, tag, tag_mask):
+        tag_ = map(int, tag.split("."))
+        tag_mask_ = map(int, tag_mask.split("."))
+        
+        mask_changes = []
+        
+        try:
+            for idx, val in enumerate(tag_mask_):
+                if val > 0:
+                    mask_changes.append(idx)
+                    mask_changes.append(val)
+
+            if mask_changes[0] == 0:
+                tag_[0] += mask_changes[1]
+                tag_[1] = 0
+                tag_[2] = 0
+            if mask_changes[0] == 1:
+                tag_[1] += mask_changes[1]
+                tag_[2] = 0
+            if mask_changes[0] == 2:
+                tag_[2] += mask_changes[1]
+
+            tag_ = map(str, tag_)
+
+            tag = '.'.join(tag_)
+            return tag 
+        except:
+            return False
