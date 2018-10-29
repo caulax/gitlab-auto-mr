@@ -1,2 +1,2 @@
-requests
-pyyaml
+PyYAML==3.12
+requests==2.19.1

@@ -3,93 +3,101 @@ import os
 import requests
 import json
 
-class AutoMR():
-    def __init__(self, filename):
-        with open("./settings.yaml", "r") as credFile:
-            self.credentians = yaml.load(credFile)
-        self.creds = self.credentians['credentians']
-        self.url = self.creds['url'] + "api/" + self.creds['api_version']
-        self.headers = {'Private-Token': self.creds['private_token']}
-        self.ass_id = self.creds['assignee_id']
+
+class AutoMR(object):
+
+    def __init__(self, filename, action):
+        
+        self.git_url = os.environ["AUTOMR_URL"]
+        self.api_version = os.environ["AUTOMR_API_VERSION"]
+        self.token = os.environ["AUTOMR_TOKEN"]
+        self.ass_id = os.environ["AUTOMR_ASS_ID"]
+        
+        self.url = self.git_url + "api/" + self.api_version
+        self.headers = {'Private-Token': self.token}
 
         with open(filename, "r") as settingsFile:
             self.settings = yaml.load(settingsFile)
         self.labels = self.settings['global']['labels']
-        self.branch = self.settings['global']['branch']
-        self.tag = self.settings['global']['tag']
         self.projects = self.settings['jobs_mr']
+
+        if action == "new-tag":
+            self.branch = self.settings['global']['tag']['branch']
+            self.tag = self.settings['global']['tag']['version']
         
-    def acceptMR(self):
+    def accept_mr(self):
         idOpenedMRAndIdProject = {}
         for project in self.projects:
-            project_id = self.getIdProjectByPath(project["project"]["path"])
-            if(project_id):
-                idsMR = self.getIdOpenedMRByProjectIdAndLabels(project_id)
-                if(idsMR):
-                    for idMR in idsMR:
+            project_id = self.get_id_project_by_path(project["project"]["path"])
+            if project_id:
+                ids_mr = self.get_id_opened_mr_by_project_id_and_labels(project_id)
+                if ids_mr:
+                    for idMR in ids_mr:
                         r = requests.put(self.url + "/projects/" + str(project_id) + "/merge_requests/" + str(idMR) + "/merge", headers=self.headers)
                         print("Merge project: " + project["project"]["path"] + " with label: " + self.labels + " returned: " + str(r))
                 else:
                     print("No MR in project: " + project["project"]["path"] + " with label: " + self.labels)
             else:
                 print("No project: " + project["project"]["path"])
-    
-    def createMR(self):
+
+    def create_mr(self):
         for project in self.projects:
             project = project["project"]
-            project_path =  project['path']
+            project_path = project['path']
             source_branch = project['source_branch']
             target_branch = project['target_branch']
         
-            project_id = self.getIdProjectByPath(project_path)
-        
-            if(project_id):           
-                if(self.compareBranches(source_branch, target_branch, project_id)):
+            project_id = self.get_id_project_by_path(project_path)
+
+            if project_id:
+                if self.compare_branches(source_branch, target_branch, project_id):
                     data = {'title' : project['title'],
                             'assignee_id' : self.ass_id,
                             'source_branch' : source_branch, 
                             'target_branch': target_branch, 
                             'labels': self.labels}     
                 
-                    r = requests.post(self.url + "/projects/" + str(project_id) + "/merge_requests", headers=self.headers, data=data)
+                    r = requests.post(self.url + "/projects/" + str(project_id) + "/merge_requests",
+                                      headers=self.headers, data=data)
                     print("Merge branches in project: " + project['path'] + " returned " + str(r))
                 else:
-                    print("No changes in project: " +  project['path'])
+                    print("No changes in project: " + project['path'])
             else:
                 print("No such project: " + project['path'])
 
-    def getIdOpenedMRByProjectIdAndLabels(self, project_id):
-        params = {'state' : 'opened',
-                'labels': self.labels}
-        r = requests.get(self.url + "/projects/" + str(project_id) + "/merge_requests", headers=self.headers, params=params)
+    def get_id_opened_mr_by_project_id_and_labels(self, project_id):
+        params = {'state': 'opened',
+                  'labels': self.labels}
+        r = requests.get(self.url + "/projects/" + str(project_id) + "/merge_requests",
+                         headers=self.headers, params=params)
         response = json.loads(r.text)
-        if(response):
-            idsMR = []
+        if response:
+            ids_mr = []
             for i in response:
-                idsMR.append(i.get("iid"))
-            return idsMR
+                ids_mr.append(i.get("iid"))
+            return ids_mr
         else:
             return None
-            
-    def getIdProjectByPath(self, project_path):
+
+    def get_id_project_by_path(self, project_path):
         project_path = project_path.replace("/", "%2F")
         r = requests.get(self.url + "/projects/" + project_path, headers=self.headers)
         response = json.loads(r.text)
 
-        if(response.get("message") != None):
+        if response.get("message"):
             return None
-        else: 
+        else:
             return response.get('id')
 
-    def compareBranches(self, source_branch, target_branch, project_id):
+    def compare_branches(self, source_branch, target_branch, project_id):
         r = requests.get(self.url + "/projects/" + str(project_id) + "/repository/compare?from=" + target_branch + "&to=" + source_branch, headers=self.headers)
         response = json.loads(r.text)
-        if(response.get('diffs')):
+        if response.get('diffs'):
             return True
         else:
             return False
 
-    def getLatestTagByProjectId(self, project_id):
+    def get_latest_tag_by_project_id(self, project_id):
         r = requests.get(self.url + "/projects/" + str(project_id) + "/repository/tags", headers=self.headers)
         try:
             response = json.loads(r.text)[0]
@@ -97,33 +105,61 @@ class AutoMR():
         except:
             return False
 
-    def createTagByMask(self):
+    def get_latest_commit_by_project_id_and_branch(self, project_id, branch):
+        r = requests.get(self.url + "/projects/" + str(project_id) + "/repository/branches/" + branch,
+                         headers=self.headers)
+        try:
+            response = json.loads(r.text)
+            return response.get("commit").get("id")
+        except:
+            return False
+
+    def get_latest_commit_by_tag_name(self, project_id, tag_name):
+        r = requests.get(self.url + "/projects/" + str(project_id) + "/repository/tags/" + tag_name,
+                         headers=self.headers)
+        try:
+            response = json.loads(r.text)
+            return response.get("commit").get("id")
+        except:
+            return False
+
+    def create_tag(self):
         for project in self.projects:
             project = project["project"]
-            project_path =  project['path']
+            project_path = project['path']
         
-            project_id = self.getIdProjectByPath(project_path)
-        
+            project_id = self.get_id_project_by_path(project_path)
             if project_id:
-                tag = self.getLatestTagByProjectId(project_id)
-                if tag:
-                    data = {
-                            'id' : project_id,
-                            'tag_name' : self.tag,
-                            'ref' : self.branch
-                        }  
-                    r = requests.post(self.url + "/projects/" + str(project_id) + "/repository/tags", headers=self.headers, data=data)
-                    if r.status_code == 400:
-                        print("Tag " + self.tag + " in project: " + project['path'] + ":" + self.branch + " already exist. Status: " + str(r.status_code))
-                    else:
-                        print("Tag " + self.tag + " in project: " + project['path'] + ":" + self.branch + " created. Status: " + str(r.status_code))
-                        
+
+                latest_tag = self.get_latest_tag_by_project_id(project_id)
+                if latest_tag and latest_tag == self.tag:
+
+                    latest_project_commit = self.get_latest_commit_by_project_id_and_branch(project_id, self.branch)
+                    latest_tag_commit = self.get_latest_commit_by_tag_name(project_id, latest_tag)
+                    if latest_project_commit != latest_tag_commit:
+                        tag = self.use_mask_for_increment_tag_version(latest_tag, "0.0.1")
+                        self.query_create_tag(project_id, tag, project['path'])
                 else:
-                    print("There is no tags in project: " + project['path'])     
+                    self.query_create_tag(project_id, self.tag, project['path'])
             else:
                 print("No such project: " + project['path'])
 
-    def useMaskForIncrementTagVersion(self, tag, tag_mask):
+    def query_create_tag(self, project_id, tag, project_path):
+
+        data = {
+            'id': project_id,
+            'tag_name': tag,
+            'ref': self.branch
+        }
+
+        r = requests.post(self.url + "/projects/" + str(project_id) + "/repository/tags",
+                          headers=self.headers, data=data)
+        if r.status_code == 400:
+            print("Tag " + tag + " in project: " + project_path + ":" + self.branch + " already exist. Status: " + str(r.status_code))
+        else:
+            print("Tag " + tag + " in project: " + project_path + ":" + self.branch + " created. Status: " + str(r.status_code))
+
+    def use_mask_for_increment_tag_version(self, tag, tag_mask):
         tag_ = map(int, tag.split("."))
         tag_mask_ = map(int, tag_mask.split("."))
         
