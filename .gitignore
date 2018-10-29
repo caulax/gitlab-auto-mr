@@ -1,3 +1,5 @@
 .idea/
 .settings.yaml
 *.pyc
+src/projects-list.yaml
+src/settings.yaml
