@@ -26,7 +26,6 @@ class AutoMR(object):
             self.tag = self.settings['global']['tag']['version']
         
     def accept_mr(self):
-        idOpenedMRAndIdProject = {}
         for project in self.projects:
             project_id = self.get_id_project_by_path(project["project"]["path"])
             if project_id:
@@ -131,21 +130,27 @@ class AutoMR(object):
             project_id = self.get_id_project_by_path(project_path)
             if project_id:
 
-                latest_tag = self.get_latest_tag_by_project_id(project_id)
-                if latest_tag and latest_tag == self.tag:
+                # latest_tag = self.get_latest_tag_by_project_id(project_id)
+                latest_tag = self.get_tag_by_major_version(self.tag, project_id)
+                if latest_tag:
+                    ct = self.compareTags(latest_tag, self.tag)
+                    if ct == -1 or ct == 0:
 
-                    latest_project_commit = self.get_latest_commit_by_project_id_and_branch(project_id, self.branch)
-                    latest_tag_commit = self.get_latest_commit_by_tag_name(project_id, latest_tag)
-                    if latest_project_commit != latest_tag_commit:
-                        tag = self.use_mask_for_increment_tag_version(latest_tag, "0.0.1")
-                        self.query_create_tag(project_id, tag, project['path'])
+                        latest_project_commit = self.get_latest_commit_by_project_id_and_branch(project_id, self.branch)
+                        latest_tag_commit = self.get_latest_commit_by_tag_name(project_id, latest_tag)
+                        if latest_project_commit != latest_tag_commit:
+                            tag = self.use_mask_for_increment_tag_version(latest_tag, "0.0.1")
+                            self.query_create_tag(project_id, tag, project['path'])
+                        else:
+                            print("No changes by commits in project: " + project['path'])
+                    if ct == 1:
+                        self.query_create_tag(project_id, self.tag, project['path'])
                 else:
                     self.query_create_tag(project_id, self.tag, project['path'])
             else:
                 print("No such project: " + project['path'])
 
     def query_create_tag(self, project_id, tag, project_path):
-
         data = {
             'id': project_id,
             'tag_name': tag,
@@ -187,3 +192,34 @@ class AutoMR(object):
             return tag 
         except:
             return False
+
+    def compareTags(self, f_tag, s_tag):
+        f_tag = map(int, f_tag.split("."))
+        s_tag = map(int, s_tag.split("."))
+
+        for i in range(0, len(f_tag)):
+            if(f_tag[i] > s_tag[i]):
+                return -1
+            if(f_tag[i] < s_tag[i]):
+                return 1
+        return 0
+
+    # return latest tag by major number in tag
+    # example list on tags ["2.3.1","2.3.2", "3.7.2", "3.7.3", "3.7.4"]
+    # input params 2.0.0
+    # output will be "2.3.2"
+    def get_tag_by_major_version(self, tag, project_id):
+        tag = map(int, tag.split("."))
+
+        r = requests.get(self.url + "/projects/" + str(project_id) + "/repository/tags", headers=self.headers)
+
+        response = json.loads(r.text)
+        tags = []
+        for i in response:
+            repo_tag = i.get("name")
+            if int(repo_tag[0]) == int(tag[0]):
+                
+                tags.append(repo_tag)
+        if tags:
+            return tags[0]
+        return False
